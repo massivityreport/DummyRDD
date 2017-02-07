@@ -5,6 +5,8 @@ from __future__ import print_function
 import gzip
 import time
 import sys
+import glob
+import bz2
 
 if sys.version_info.major == 3:
     from io import StringIO
@@ -67,12 +69,18 @@ class jvm(object):
             else:
                 raise Exception('Need TinyS3 to use s3 files')
         else:
-            if file_name.endswith('.gz'):
-                opener = gzip.open
-            else:
-                opener = open
-            with opener(file_name, 'r') as f:
-                return f.readlines()
+            file_names = glob.glob(file_name)
+            lines = list()
+            for file_name in file_names:
+                if file_name.endswith('.gz'):
+                    opener = gzip.open
+                if file_name.endswith('.bz2'):
+                    opener = bz2.BZ2File
+                else:
+                    opener = open
+                with opener(file_name, 'r') as f:
+                    lines += f.readlines()
+            return lines
 
 
 class SparkContext(object):

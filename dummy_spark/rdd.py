@@ -166,7 +166,8 @@ class RDD(object):
         :param preservesPartitioning:
         :return:
         """
-        return self.map(f, preservesPartitioning=preservesPartitioning)
+        data = list(f(self._jrdd))
+        return RDD(data, self.ctx)
 
     def getNumPartitions(self):
         """
@@ -855,7 +856,11 @@ class RDD(object):
         :param numPartitions:
         :return:
         """
-        raise NotImplementedError
+        self_dict = dict(self._jrdd)
+        other_dict = dict(other._jrdd)
+        data = [(k, (v, other_dict.get(k))) for k, v in self._jrdd if k in other_dict]
+        return RDD(data, self.ctx)
+
 
     def leftOuterJoin(self, other, numPartitions=None):
         """
@@ -864,8 +869,8 @@ class RDD(object):
         :param numPartitions:
         :return:
         """
-
-        data = [(k, (dict(self._jrdd).get(k), v)) for k, v in other._jrdd]
+        other_dict = dict(other._jrdd)
+        data = [(k, (v, other_dict.get(k))) for k, v in self._jrdd]
         return RDD(data, self.ctx)
 
     def rightOuterJoin(self, other, numPartitions=None):
@@ -876,7 +881,9 @@ class RDD(object):
         :param numPartitions:
         :return:
         """
-        raise NotImplementedError
+        self_dict = dict(self._jrdd)
+        data = [(k, (self_dict.get(k), v)) for k, v in other._jrdd]
+        return RDD(data, self.ctx)
 
     def fullOuterJoin(self, other, numPartitions=None):
         """
@@ -920,7 +927,15 @@ class RDD(object):
         :param numPartitions:
         :return:
         """
-        raise NotImplementedError
+        keys = {kv[0] for kv in self._jrdd}
+        data = []
+        for key in keys:
+            values = [kv[1] for kv in self._jrdd if kv[0] == key]
+            reduced = zeroValue
+            for value in values:
+                reduced = seqFunc(reduced, value)
+            data.append((key, reduced))
+        return RDD(data, self.ctx)
 
     def foldByKey(self, zeroValue, func, numPartitions=None):
         """
